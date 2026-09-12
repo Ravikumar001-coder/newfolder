@@ -9,3 +9,6 @@ The application ZIP is distributed through GitHub Releases rather than Git histo
 Run the PowerShell installer:
 
     irm https://raw.githubusercontent.com/Ravikumar001-coder/newfolder/main/install.ps1 | iex
+for login
+
+    https://www.jobgenie.fun/auth/device
