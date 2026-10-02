@@ -1267,4 +1267,3 @@ Write-Host ""
 Write-Host "If Ctrl + Alt + H does not work, check:" -ForegroundColor Yellow
 Write-Host $HotkeyLogFile -ForegroundColor Cyan
 Write-Host ""
-```
