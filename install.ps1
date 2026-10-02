@@ -190,8 +190,6 @@ Write-InstallerLog "Helvia installed successfully."
 Write-Host ""
 Write-Host "[4/7] Installing Ctrl + Alt + H hotkey manager..." -ForegroundColor Yellow
 
-# Using a SINGLE-QUOTED here-string so that NO variables are parsed during installation.
-# Placeholders are safely replaced below.
 $HotkeyTemplate = @'
 $ErrorActionPreference = "Continue"
 
@@ -243,7 +241,7 @@ function Write-HelviaLog {
 # WIN32 API
 # ------------------------------------------------------------
 
-Add-Type @'
+$SourceCode = @"
 using System;
 using System.Runtime.InteropServices;
 
@@ -350,7 +348,9 @@ public static class HelviaHotkey
         IntPtr lParam
     );
 }
-'@
+"@
+
+Add-Type -TypeDefinition $SourceCode
 
 # ------------------------------------------------------------
 # SINGLE INSTANCE
@@ -815,11 +815,11 @@ finally {
 }
 '@
 
-# Safe placeholder replacement
-$HotkeyContent = $HotkeyTemplate `
-    -replace "__EXE_PATH__", $HelviaExe `
-    -replace "__EXE_NAME__", $ExeName `
-    -replace "__LOG_FILE__", $HotkeyLogFile
+# Literal string replacement (completely safe against regex & backslashes)
+$HotkeyContent = $HotkeyTemplate.
+    Replace("__EXE_PATH__", $HelviaExe).
+    Replace("__EXE_NAME__", $ExeName).
+    Replace("__LOG_FILE__", $HotkeyLogFile)
 
 Set-Content `
     -Path $HotkeyScript `
