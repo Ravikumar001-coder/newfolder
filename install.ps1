@@ -204,6 +204,12 @@ $HotkeyContent = @"
 `$MutexName    = "Global\Helvia_CtrlAltH_Hotkey_Manager"
 `$HotkeyId     = 9001
 
+`$SupportDirectory = Split-Path -Parent `$LogFile
+
+if (-not (Test-Path `$SupportDirectory)) {
+    New-Item -ItemType Directory -Path `$SupportDirectory -Force | Out-Null
+}
+
 # ------------------------------------------------------------
 # LOGGING
 # ------------------------------------------------------------
@@ -216,13 +222,19 @@ function Write-HelviaLog {
 
     try {
         `$Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+        `$LogDirectory = Split-Path -Parent `$LogFile
 
-        Add-Content `
-            -Path `$LogFile `
-            -Value "[$Timestamp] [$Level] `$Message" `
-            -ErrorAction SilentlyContinue
+        if (-not (Test-Path `$LogDirectory)) {
+            New-Item -ItemType Directory -Path `$LogDirectory -Force | Out-Null
+        }
+
+        `$LogLine = "[`$Timestamp] [`$Level] `$Message"
+
+        Add-Content -Path `$LogFile -Value `$LogLine -ErrorAction SilentlyContinue
     }
-    catch {}
+    catch {
+        # Never allow logging failure to terminate the hotkey manager.
+    }
 }
 
 # ------------------------------------------------------------
