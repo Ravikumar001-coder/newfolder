@@ -190,24 +190,26 @@ Write-InstallerLog "Helvia installed successfully."
 Write-Host ""
 Write-Host "[4/7] Installing Ctrl + Alt + H hotkey manager..." -ForegroundColor Yellow
 
-$HotkeyContent = @"
-`$ErrorActionPreference = "Continue"
+# Using a SINGLE-QUOTED here-string so that NO variables are parsed during installation.
+# Placeholders are safely replaced below.
+$HotkeyTemplate = @'
+$ErrorActionPreference = "Continue"
 
 # ============================================================
 # HELVIA HOTKEY MANAGER
 # Ctrl + Alt + H
 # ============================================================
 
-`$ExePath      = "$HelviaExe"
-`$ExeName      = "$ExeName"
-`$LogFile      = "$HotkeyLogFile"
-`$MutexName    = "Global\Helvia_CtrlAltH_Hotkey_Manager"
-`$HotkeyId     = 9001
+$ExePath      = "__EXE_PATH__"
+$ExeName      = "__EXE_NAME__"
+$LogFile      = "__LOG_FILE__"
+$MutexName    = "Global\Helvia_CtrlAltH_Hotkey_Manager"
+$HotkeyId     = 9001
 
-`$SupportDirectory = Split-Path -Parent `$LogFile
+$SupportDirectory = Split-Path -Parent $LogFile
 
-if (-not (Test-Path `$SupportDirectory)) {
-    New-Item -ItemType Directory -Path `$SupportDirectory -Force | Out-Null
+if (-not (Test-Path $SupportDirectory)) {
+    New-Item -ItemType Directory -Path $SupportDirectory -Force | Out-Null
 }
 
 # ------------------------------------------------------------
@@ -216,21 +218,21 @@ if (-not (Test-Path `$SupportDirectory)) {
 
 function Write-HelviaLog {
     param(
-        [string]`$Message,
-        [string]`$Level = "INFO"
+        [string]$Message,
+        [string]$Level = "INFO"
     )
 
     try {
-        `$Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-        `$LogDirectory = Split-Path -Parent `$LogFile
+        $Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+        $LogDirectory = Split-Path -Parent $LogFile
 
-        if (-not (Test-Path `$LogDirectory)) {
-            New-Item -ItemType Directory -Path `$LogDirectory -Force | Out-Null
+        if (-not (Test-Path $LogDirectory)) {
+            New-Item -ItemType Directory -Path $LogDirectory -Force | Out-Null
         }
 
-        `$LogLine = "[`$Timestamp] [`$Level] `$Message"
+        $LogLine = "[$Timestamp] [$Level] $Message"
 
-        Add-Content -Path `$LogFile -Value `$LogLine -ErrorAction SilentlyContinue
+        Add-Content -Path $LogFile -Value $LogLine -ErrorAction SilentlyContinue
     }
     catch {
         # Never allow logging failure to terminate the hotkey manager.
@@ -355,21 +357,21 @@ public static class HelviaHotkey
 # ------------------------------------------------------------
 
 try {
-    `$CreatedNew = `$false
+    $CreatedNew = $false
 
-    `$Mutex = New-Object System.Threading.Mutex(
-        `$true,
-        `$MutexName,
-        [ref]`$CreatedNew
+    $Mutex = New-Object System.Threading.Mutex(
+        $true,
+        $MutexName,
+        [ref]$CreatedNew
     )
 
-    if (-not `$CreatedNew) {
+    if (-not $CreatedNew) {
         Write-HelviaLog "Another Helvia hotkey manager is already running."
         exit 0
     }
 }
 catch {
-    Write-HelviaLog "Could not create mutex: `$(`$_.Exception.Message)" "WARN"
+    Write-HelviaLog "Could not create mutex: $($_.Exception.Message)" "WARN"
 }
 
 # ------------------------------------------------------------
@@ -380,11 +382,11 @@ function Get-HelviaProcesses {
 
     try {
 
-        `$ProcessName = [System.IO.Path]::GetFileNameWithoutExtension(`$ExeName)
+        $ProcessName = [System.IO.Path]::GetFileNameWithoutExtension($ExeName)
 
         return @(
             Get-Process `
-                -Name `$ProcessName `
+                -Name $ProcessName `
                 -ErrorAction SilentlyContinue
         )
 
@@ -392,7 +394,7 @@ function Get-HelviaProcesses {
     catch {
 
         Write-HelviaLog `
-            "Error finding Helvia processes: `$(`$_.Exception.Message)" `
+            "Error finding Helvia processes: $($_.Exception.Message)" `
             "ERROR"
 
         return @()
@@ -406,70 +408,70 @@ function Get-HelviaProcesses {
 function Find-HelviaWindow {
 
     param(
-        [System.Diagnostics.Process]`$Process
+        [System.Diagnostics.Process]$Process
     )
 
-    if (-not `$Process) {
+    if (-not $Process) {
         return [IntPtr]::Zero
     }
 
-    if (`$Process.HasExited) {
+    if ($Process.HasExited) {
         return [IntPtr]::Zero
     }
 
     try {
-        `$Process.Refresh()
+        $Process.Refresh()
 
-        if (`$Process.MainWindowHandle -ne [IntPtr]::Zero) {
-            return `$Process.MainWindowHandle
+        if ($Process.MainWindowHandle -ne [IntPtr]::Zero) {
+            return $Process.MainWindowHandle
         }
     }
     catch {}
 
-    `$Result = [IntPtr]::Zero
-    `$TargetPid = `$Process.Id
+    $Result = [IntPtr]::Zero
+    $TargetPid = $Process.Id
 
-    `$Callback = [HelviaHotkey+EnumWindowsProc]{
+    $Callback = [HelviaHotkey+EnumWindowsProc]{
         param(
-            [IntPtr]`$Hwnd,
-            [IntPtr]`$LParam
+            [IntPtr]$Hwnd,
+            [IntPtr]$LParam
         )
 
         try {
 
-            if (-not [HelviaHotkey]::IsWindowVisible(`$Hwnd)) {
-                return `$true
+            if (-not [HelviaHotkey]::IsWindowVisible($Hwnd)) {
+                return $true
             }
 
-            [uint32]`$WindowPid = 0
+            [uint32]$WindowPid = 0
 
             [HelviaHotkey]::GetWindowThreadProcessId(
-                `$Hwnd,
-                [ref]`$WindowPid
+                $Hwnd,
+                [ref]$WindowPid
             ) | Out-Null
 
-            if (`$WindowPid -eq `$TargetPid) {
-                `$script:HelviaWindowResult = `$Hwnd
-                return `$false
+            if ($WindowPid -eq $TargetPid) {
+                $script:HelviaWindowResult = $Hwnd
+                return $false
             }
 
         }
         catch {}
 
-        return `$true
+        return $true
     }
 
-    `$script:HelviaWindowResult = [IntPtr]::Zero
+    $script:HelviaWindowResult = [IntPtr]::Zero
 
     try {
         [HelviaHotkey]::EnumWindows(
-            `$Callback,
+            $Callback,
             [IntPtr]::Zero
         ) | Out-Null
     }
     catch {}
 
-    return `$script:HelviaWindowResult
+    return $script:HelviaWindowResult
 }
 
 # ------------------------------------------------------------
@@ -479,72 +481,72 @@ function Find-HelviaWindow {
 function Show-HelviaWindow {
 
     param(
-        [System.Diagnostics.Process]`$Process
+        [System.Diagnostics.Process]$Process
     )
 
-    if (-not `$Process) {
-        return `$false
+    if (-not $Process) {
+        return $false
     }
 
-    if (`$Process.HasExited) {
-        return `$false
+    if ($Process.HasExited) {
+        return $false
     }
 
-    Write-HelviaLog "Attempting to focus Helvia PID `$(`$Process.Id)"
+    Write-HelviaLog "Attempting to focus Helvia PID $($Process.Id)"
 
-    for (`$i = 0; `$i -lt 40; `$i++) {
+    for ($i = 0; $i -lt 40; $i++) {
 
         try {
-            `$Process.Refresh()
+            $Process.Refresh()
         }
         catch {}
 
-        `$Handle = Find-HelviaWindow -Process `$Process
+        $Handle = Find-HelviaWindow -Process $Process
 
-        if (`$Handle -ne [IntPtr]::Zero) {
+        if ($Handle -ne [IntPtr]::Zero) {
 
-            Write-HelviaLog "Helvia window found. HWND: `$Handle"
+            Write-HelviaLog "Helvia window found. HWND: $Handle"
 
             try {
 
                 # Restore minimized window
-                if ([HelviaHotkey]::IsIconic(`$Handle)) {
+                if ([HelviaHotkey]::IsIconic($Handle)) {
 
                     Write-HelviaLog "Helvia is minimized. Restoring..."
 
                     [HelviaHotkey]::ShowWindow(
-                        `$Handle,
+                        $Handle,
                         9
                     ) | Out-Null
                 }
                 else {
 
                     [HelviaHotkey]::ShowWindow(
-                        `$Handle,
+                        $Handle,
                         5
                     ) | Out-Null
                 }
 
                 # Bring it above other windows
                 [HelviaHotkey]::BringWindowToTop(
-                    `$Handle
+                    $Handle
                 ) | Out-Null
 
                 # Give it foreground focus
                 [HelviaHotkey]::SetForegroundWindow(
-                    `$Handle
+                    $Handle
                 ) | Out-Null
 
                 Start-Sleep -Milliseconds 150
 
-                `$Foreground = [HelviaHotkey]::GetForegroundWindow()
+                $Foreground = [HelviaHotkey]::GetForegroundWindow()
 
-                if (`$Foreground -eq `$Handle) {
+                if ($Foreground -eq $Handle) {
 
                     Write-HelviaLog `
-                        "Helvia successfully focused. HWND: `$Handle"
+                        "Helvia successfully focused. HWND: $Handle"
 
-                    return `$true
+                    return $true
                 }
 
                 Write-HelviaLog `
@@ -553,24 +555,24 @@ function Show-HelviaWindow {
 
                 # Try one more time
                 [HelviaHotkey]::BringWindowToTop(
-                    `$Handle
+                    $Handle
                 ) | Out-Null
 
                 [HelviaHotkey]::SetForegroundWindow(
-                    `$Handle
+                    $Handle
                 ) | Out-Null
 
                 Start-Sleep -Milliseconds 100
 
-                return `$true
+                return $true
             }
             catch {
 
                 Write-HelviaLog `
-                    "Focus operation failed: `$(`$_.Exception.Message)" `
+                    "Focus operation failed: $($_.Exception.Message)" `
                     "ERROR"
 
-                return `$false
+                return $false
             }
         }
 
@@ -581,7 +583,7 @@ function Show-HelviaWindow {
         "Helvia process exists but no visible window was detected." `
         "WARN"
 
-    return `$false
+    return $false
 }
 
 # ------------------------------------------------------------
@@ -592,33 +594,33 @@ function Start-Helvia {
 
     try {
 
-        if (-not (Test-Path `$ExePath)) {
+        if (-not (Test-Path $ExePath)) {
 
             Write-HelviaLog `
-                "Helvia executable not found: `$ExePath" `
+                "Helvia executable not found: $ExePath" `
                 "ERROR"
 
-            return `$null
+            return $null
         }
 
         Write-HelviaLog "Starting Helvia..."
 
-        `$Process = Start-Process `
-            -FilePath `$ExePath `
+        $Process = Start-Process `
+            -FilePath $ExePath `
             -PassThru
 
         Write-HelviaLog `
-            "Helvia started. PID: `$(`$Process.Id)"
+            "Helvia started. PID: $($Process.Id)"
 
-        return `$Process
+        return $Process
     }
     catch {
 
         Write-HelviaLog `
-            "Failed to start Helvia: `$(`$_.Exception.Message)" `
+            "Failed to start Helvia: $($_.Exception.Message)" `
             "ERROR"
 
-        return `$null
+        return $null
     }
 }
 
@@ -634,23 +636,23 @@ function Invoke-HelviaHotkey {
     # CHECK EXISTING PROCESSES
     # --------------------------------------------------------
 
-    `$Processes = Get-HelviaProcesses
+    $Processes = Get-HelviaProcesses
 
-    if (`$Processes.Count -gt 0) {
+    if ($Processes.Count -gt 0) {
 
         Write-HelviaLog `
-            "Found `$(`$Processes.Count) existing Helvia process(es)."
+            "Found $($Processes.Count) existing Helvia process(es)."
 
-        foreach (`$Process in `$Processes) {
+        foreach ($Process in $Processes) {
 
-            if (`$Process.HasExited) {
+            if ($Process.HasExited) {
                 continue
             }
 
             Write-HelviaLog `
-                "Using existing Helvia PID `$(`$Process.Id)"
+                "Using existing Helvia PID $($Process.Id)"
 
-            if (Show-HelviaWindow -Process `$Process) {
+            if (Show-HelviaWindow -Process $Process) {
                 return
             }
         }
@@ -660,16 +662,16 @@ function Invoke-HelviaHotkey {
         # Wait before launching another instance.
         # ----------------------------------------------------
 
-        `$ExistingProcess = `$Processes |
-            Where-Object { -not `$_.HasExited } |
+        $ExistingProcess = $Processes |
+            Where-Object { -not $_.HasExited } |
             Select-Object -First 1
 
-        if (`$ExistingProcess) {
+        if ($ExistingProcess) {
 
             Write-HelviaLog `
                 "Waiting for existing Helvia window..."
 
-            if (Show-HelviaWindow -Process `$ExistingProcess) {
+            if (Show-HelviaWindow -Process $ExistingProcess) {
                 return
             }
         }
@@ -681,9 +683,9 @@ function Invoke-HelviaHotkey {
 
     Write-HelviaLog "Helvia is not currently available. Starting it..."
 
-    `$StartedProcess = Start-Helvia
+    $StartedProcess = Start-Helvia
 
-    if (-not `$StartedProcess) {
+    if (-not $StartedProcess) {
         return
     }
 
@@ -693,43 +695,38 @@ function Invoke-HelviaHotkey {
 
     Start-Sleep -Milliseconds 500
 
-    Show-HelviaWindow -Process `$StartedProcess | Out-Null
+    Show-HelviaWindow -Process $StartedProcess | Out-Null
 }
 
 # ------------------------------------------------------------
 # REGISTER CTRL + ALT + H
 # ------------------------------------------------------------
 
-# MOD_CONTROL = 0x0002
-# MOD_ALT     = 0x0001
-# MOD_NOREPEAT = 0x4000
-# VK_H = 0x48
+$MOD_CONTROL  = 0x0002
+$MOD_ALT      = 0x0001
+$MOD_NOREPEAT = 0x4000
+$VK_H         = 0x48
 
-`$MOD_CONTROL  = 0x0002
-`$MOD_ALT      = 0x0001
-`$MOD_NOREPEAT = 0x4000
-`$VK_H         = 0x48
-
-`$Modifiers = `$MOD_CONTROL -bor `$MOD_ALT -bor `$MOD_NOREPEAT
+$Modifiers = $MOD_CONTROL -bor $MOD_ALT -bor $MOD_NOREPEAT
 
 Write-HelviaLog "Registering global Ctrl + Alt + H hotkey..."
 
-`$Registered = [HelviaHotkey]::RegisterHotKey(
+$Registered = [HelviaHotkey]::RegisterHotKey(
     [IntPtr]::Zero,
-    `$HotkeyId,
-    `$Modifiers,
-    `$VK_H
+    $HotkeyId,
+    $Modifiers,
+    $VK_H
 )
 
-if (-not `$Registered) {
+if (-not $Registered) {
 
-    `$ErrorCode = [Runtime.InteropServices.Marshal]::GetLastWin32Error()
+    $ErrorCode = [Runtime.InteropServices.Marshal]::GetLastWin32Error()
 
     Write-HelviaLog `
-        "FAILED to register Ctrl + Alt + H. Windows error code: `$ErrorCode" `
+        "FAILED to register Ctrl + Alt + H. Windows error code: $ErrorCode" `
         "ERROR"
 
-    if (`$ErrorCode -eq 1409) {
+    if ($ErrorCode -eq 1409) {
 
         Write-HelviaLog `
             "Error 1409 means Ctrl + Alt + H is already registered by another application." `
@@ -747,18 +744,18 @@ Write-HelviaLog "Ctrl + Alt + H registered successfully."
 
 try {
 
-    `$Msg = New-Object HelviaHotkey+MSG
+    $Msg = New-Object HelviaHotkey+MSG
 
-    while (`$true) {
+    while ($true) {
 
-        `$Result = [HelviaHotkey]::GetMessage(
-            [ref]`$Msg,
+        $Result = [HelviaHotkey]::GetMessage(
+            [ref]$Msg,
             [IntPtr]::Zero,
             0,
             0
         )
 
-        if (`$Result -eq -1) {
+        if ($Result -eq -1) {
 
             Write-HelviaLog `
                 "GetMessage returned an error." `
@@ -767,31 +764,31 @@ try {
             break
         }
 
-        if (`$Result -eq 0) {
+        if ($Result -eq 0) {
             break
         }
 
-        if (`$Msg.message -eq 0x0312) {
+        if ($Msg.message -eq 0x0312) {
 
-            if (`$Msg.wParam.ToUInt32() -eq `$HotkeyId) {
+            if ($Msg.wParam.ToUInt32() -eq $HotkeyId) {
 
                 Invoke-HelviaHotkey
             }
         }
 
         [HelviaHotkey]::TranslateMessage(
-            [ref]`$Msg
+            [ref]$Msg
         ) | Out-Null
 
         [HelviaHotkey]::DispatchMessage(
-            [ref]`$Msg
+            [ref]$Msg
         ) | Out-Null
     }
 }
 catch {
 
     Write-HelviaLog `
-        "Hotkey message loop failed: `$(`$_.Exception.Message)" `
+        "Hotkey message loop failed: $($_.Exception.Message)" `
         "ERROR"
 }
 finally {
@@ -800,7 +797,7 @@ finally {
 
         [HelviaHotkey]::UnregisterHotKey(
             [IntPtr]::Zero,
-            `$HotkeyId
+            $HotkeyId
         ) | Out-Null
 
         Write-HelviaLog "Ctrl + Alt + H unregistered."
@@ -809,14 +806,20 @@ finally {
     catch {}
 
     try {
-        if (`$Mutex) {
-            `$Mutex.ReleaseMutex() | Out-Null
-            `$Mutex.Dispose()
+        if ($Mutex) {
+            $Mutex.ReleaseMutex() | Out-Null
+            $Mutex.Dispose()
         }
     }
     catch {}
 }
-"@
+'@
+
+# Safe placeholder replacement
+$HotkeyContent = $HotkeyTemplate `
+    -replace "__EXE_PATH__", $HelviaExe `
+    -replace "__EXE_NAME__", $ExeName `
+    -replace "__LOG_FILE__", $HotkeyLogFile
 
 Set-Content `
     -Path $HotkeyScript `
